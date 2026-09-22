@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Nexus dashboard design tokens (Tailwind v4 @theme)
+   Dark theme is the default: the raw variables below ARE the dark palette.
+   The `.light` class on <html> overrides them for the light theme.
+   Every token becomes a utility: bg-surface, text-strong, border-line, ...
+--------------------------------------------------------------------------- */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-base: #1e1e2e;
+  --color-surface: #2a2a3e;
+  --color-surface-2: #23233a;
+  --color-overlay: #31314a;
+  --color-line: #3b3b55;
+  --color-scrim: rgb(12 12 24 / 0.6);
+
+  --color-strong: #f4f4fb;
+  --color-body: #d6d6e6;
+  --color-muted: #a6a6c2;
+  --color-muted-2: #7e7e9c;
+
+  --color-brand: #8f8cf5;
+  --color-brand-strong: #7f7bf0;
+  --color-brand-soft: rgb(143 140 245 / 0.16);
+  --color-brand-ink: #c3c1ff;
+  --color-brand-contrast: #16162a;
+
+  --color-success: #4ad6a5;
+  --color-success-soft: rgb(74 214 165 / 0.14);
+  --color-success-ink: #7ee8c3;
+
+  --color-warning: #f0b661;
+  --color-warning-soft: rgb(240 182 97 / 0.14);
+  --color-warning-ink: #f7cf95;
+
+  --color-danger: #f2788f;
+  --color-danger-soft: rgb(242 120 143 / 0.14);
+  --color-danger-ink: #ff9fb0;
+
+  --color-hue-25: #f0b661;
+  --color-hue-25-ink: #f7cf95;
+  --color-hue-155: #4ad6a5;
+  --color-hue-155-ink: #7ee8c3;
+  --color-hue-190: #56c8e0;
+  --color-hue-190-ink: #8fdfef;
+  --color-hue-200: #6aa9f2;
+  --color-hue-200-ink: #a3c8f8;
+  --color-hue-235: #8f9bf5;
+  --color-hue-235-ink: #bcc3fb;
+  --color-hue-265: #a98cf5;
+  --color-hue-265-ink: #cbb9fb;
+  --color-hue-340: #f083a8;
+  --color-hue-340-ink: #f9aec6;
+
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter var", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --shadow-card: 0 1px 2px rgb(8 8 20 / 0.35);
+  --shadow-overlay: 0 18px 40px -20px rgb(8 8 20 / 0.7);
+  --shadow-pop: 0 24px 60px -18px rgb(8 8 20 / 0.75);
+}
+
+/* Light theme overrides --------------------------------------------------- */
+html.light {
+  --color-base: #f3f4fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f7fc;
+  --color-overlay: #ffffff;
+  --color-line: #dfe1ee;
+  --color-scrim: rgb(24 24 46 / 0.35);
+
+  --color-strong: #1b1b2f;
+  --color-body: #3c3c56;
+  --color-muted: #63637f;
+  --color-muted-2: #8b8ba6;
+
+  --color-brand: #5b57e8;
+  --color-brand-strong: #4a46dc;
+  --color-brand-soft: rgb(91 87 232 / 0.1);
+  --color-brand-ink: #403cb8;
+  --color-brand-contrast: #ffffff;
+
+  --color-success: #12876a;
+  --color-success-soft: rgb(18 135 106 / 0.1);
+  --color-success-ink: #0d6b53;
+
+  --color-warning: #b7791f;
+  --color-warning-soft: rgb(183 121 31 / 0.12);
+  --color-warning-ink: #8f5d13;
+
+  --color-danger: #c93d63;
+  --color-danger-soft: rgb(201 61 99 / 0.1);
+  --color-danger-ink: #a3284b;
+
+  --color-hue-25: #b7791f;
+  --color-hue-25-ink: #8f5d13;
+  --color-hue-155: #12876a;
+  --color-hue-155-ink: #0d6b53;
+  --color-hue-190: #0d7490;
+  --color-hue-190-ink: #0a5a70;
+  --color-hue-200: #2563b0;
+  --color-hue-200-ink: #1c4c88;
+  --color-hue-235: #4f4ac4;
+  --color-hue-235-ink: #3b3797;
+  --color-hue-265: #7a45c9;
+  --color-hue-265-ink: #5e349c;
+  --color-hue-340: #c93d76;
+  --color-hue-340-ink: #9d2c5b;
+
+  --shadow-card: 0 1px 2px rgb(24 24 46 / 0.06);
+  --shadow-overlay: 0 18px 40px -24px rgb(24 24 46 / 0.35);
+  --shadow-pop: 0 24px 60px -24px rgb(24 24 46 / 0.4);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-base);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.fresh-gradient {
+  background-color: rgb(134, 239, 172);
+  background-image: linear-gradient(
+    to right bottom,
+    rgb(219, 234, 254),
+    rgb(187, 247, 208),
+    rgb(254, 249, 195)
+  );
+}
