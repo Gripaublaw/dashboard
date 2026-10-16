@@ -38,8 +38,14 @@ export const translations = {
 
   // ---- Header / account --------------------------------------------------
   "header.language": { ca: "Idioma", en: "Language" },
-  "header.theme.toDark": { ca: "Canvia a tema fosc", en: "Switch to dark theme" },
-  "header.theme.toLight": { ca: "Canvia a tema clar", en: "Switch to light theme" },
+  "header.theme.toDark": {
+    ca: "Canvia a tema fosc",
+    en: "Switch to dark theme",
+  },
+  "header.theme.toLight": {
+    ca: "Canvia a tema clar",
+    en: "Switch to light theme",
+  },
   "header.theme.dark": { ca: "Fosc", en: "Dark" },
   "header.theme.light": { ca: "Clar", en: "Light" },
   "header.logout": { ca: "Tanca la sessió", en: "Sign out" },
@@ -179,12 +185,18 @@ export const translations = {
   },
   "home.metric.apps": { ca: "Nombre d'apps", en: "Number of apps" },
   "home.metric.users": { ca: "Usuaris actius", en: "Active users" },
-  "home.metric.services": { ca: "Serveis integrats", en: "Integrated services" },
+  "home.metric.services": {
+    ca: "Serveis integrats",
+    en: "Integrated services",
+  },
   "home.metric.sla": { ca: "Estat del sistema", en: "System status" },
   "home.metric.apps.hint": { ca: "2 noves aquest mes", en: "2 new this month" },
   "home.metric.users.hint": { ca: "Fa 5 min", en: "5 min ago" },
   "home.metric.services.hint": { ca: "1 pendent", en: "1 pending" },
-  "home.metric.sla.hint": { ca: "99,94 % de disponibilitat", en: "99.94% uptime" },
+  "home.metric.sla.hint": {
+    ca: "99,94 % de disponibilitat",
+    en: "99.94% uptime",
+  },
   "home.metric.operational": { ca: "Operatiu", en: "Operational" },
   "home.activity.title": { ca: "Últimes activitats", en: "Latest activity" },
   "home.activity.subtitle": {
@@ -195,7 +207,10 @@ export const translations = {
     ca: "Encara no hi ha activitat registrada.",
     en: "No activity recorded yet.",
   },
-  "home.uptime.title": { ca: "Disponibilitat per servei", en: "Uptime per service" },
+  "home.uptime.title": {
+    ca: "Disponibilitat per servei",
+    en: "Uptime per service",
+  },
   "home.uptime.window": { ca: "Últims 30 dies", en: "Last 30 days" },
 
   // ---- Apps --------------------------------------------------------------
@@ -207,7 +222,10 @@ export const translations = {
   "apps.add": { ca: "Afegeix una app", en: "New app" },
   "apps.search": { ca: "Cerca aplicacions…", en: "Search applications…" },
   "apps.all": { ca: "Totes", en: "All" },
-  "apps.empty.title": { ca: "Cap aplicació coincideix", en: "No matching application" },
+  "apps.empty.title": {
+    ca: "Cap aplicació coincideix",
+    en: "No matching application",
+  },
   "apps.empty.body": {
     ca: "Prova amb un altre nom o esborra els filtres per veure totes les apps.",
     en: "Try another name or clear the filters to see every app.",
@@ -236,13 +254,18 @@ export const translations = {
     ca: "Identitat i paràmetres per defecte de l'ecosistema.",
     en: "Identity and default parameters for the ecosystem.",
   },
-  "settings.form.title": { ca: "Identitat de l'ecosistema", en: "Ecosystem identity" },
+  "settings.form.title": {
+    ca: "Identitat de l'ecosistema",
+    en: "Ecosystem identity",
+  },
   "settings.name": { ca: "Nom de l'ecosistema", en: "Ecosystem name" },
   "settings.name.help": {
     ca: "Es mostra a la capçalera i als informes enviats.",
     en: "Shown in the header and in sent reports.",
   },
   "settings.logo": { ca: "Logotip", en: "Logo" },
+  "settings.logo.current": { ca: "Logotip actual", en: "Current logo" },
+  "settings.logo.none": { ca: "Sense logotip", en: "No logo" },
   "settings.logo.help": {
     ca: "PNG o SVG, mínim 256 × 256 px, màxim 512 kB.",
     en: "PNG or SVG, min 256 × 256 px, max 512 kB.",
@@ -255,7 +278,10 @@ export const translations = {
     en: "Applied to everyone who has not picked a language.",
   },
   "settings.timezone": { ca: "Zona horària", en: "Time zone" },
-  "settings.saved": { ca: "S'ha desat la configuració.", en: "Settings saved." },
+  "settings.saved": {
+    ca: "S'ha desat la configuració.",
+    en: "Settings saved.",
+  },
   "settings.savedAt": { ca: "Desat a les ", en: "Saved at " },
   "settings.saving": { ca: "S'està desant…", en: "Saving…" },
   "settings.name.required": { ca: "Cal un nom", en: "A name is required" },

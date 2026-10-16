@@ -1,0 +1,23 @@
+# Variables d'entorn
+.env
+.env.local
+.env.*.local
+
+# Dependències
+node_modules/
+vendor/
+
+# Build de Fresh
+_fresh/
+
+# Fitxers del sistema operatiu
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
