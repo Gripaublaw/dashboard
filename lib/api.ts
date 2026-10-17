@@ -1,13 +1,8 @@
 /**
  * lib/api.ts — the single boundary between the UI and your backend.
  *
- * Today every function resolves against `lib/data.ts` after a short delay, so
- * the islands exercise real submit / error / empty states without a server.
- * To go live, set USE_REMOTE = true (or point ENDPOINTS at your routes) and
- * the same signatures keep working: nothing in `islands/` has to change.
- *
- * Expected JSON shapes are declared at the bottom of this file — hand those
- * types to the backend as the wire contract.
+ * USE_REMOTE = true: les crides van a l'API real (Hono + PostgreSQL).
+ * Els endpoints són absoluts i apunten a API_BASE_URL del .env.
  */
 
 import {
@@ -19,15 +14,18 @@ import {
   type UserRow,
 } from "./data.ts";
 
-/** Flip to true once `routes/api/*` is implemented. */
-export const USE_REMOTE = false;
+/** Amb true, les crides van a l'API real. */
+export const USE_REMOTE = true;
 
-/** Relative endpoints the islands will hit when USE_REMOTE is true. */
+/** URL base de l'API, llegida del .env del dashboard. */
+const API_BASE = "http://localhost:8000";
+
+/** Endpoints absoluts cap a l'API. */
 export const ENDPOINTS = {
-  apps: "/api/apps",
-  users: "/api/usuaris",
-  connections: "/api/connexions",
-  settings: "/api/configuracio",
+  apps: `${API_BASE}/api/apps`,
+  users: `${API_BASE}/api/usuaris`,
+  connections: `${API_BASE}/api/connexions`,
+  settings: `${API_BASE}/api/configuracio`,
 } as const;
 
 /** Thrown (and catchable) by every call below — safe to show in a banner. */
@@ -59,10 +57,7 @@ function nextId(prefix: string) {
   return `${prefix}-local-${Date.now().toString(36)}-${seq}`;
 }
 
-async function request<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -75,7 +70,7 @@ async function request<T>(
   if (!res.ok) {
     throw new ApiError(`HTTP_${res.status}`, res.status);
   }
-  return await res.json() as T;
+  return (await res.json()) as T;
 }
 
 /** Two-letter badge initials derived from a display name. */
@@ -95,12 +90,38 @@ export function hueOf(seed: string) {
 
 /* ------------------------------------------------------------------ apps */
 
+/** Forma que retorna l'API Hono per a una app. */
+interface ApiApp {
+  id: number;
+  name: string;
+  slug: string;
+  status: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Converteix una app de l'API al format AppRow del dashboard. */
+function adaptApp(raw: ApiApp): AppRow {
+  return {
+    id: String(raw.id),
+    name: raw.name,
+    slug: raw.slug,
+    initials: initialsOf(raw.name),
+    hue: hueOf(raw.slug),
+    status: raw.status as AppRow["status"],
+    type: raw.type as AppRow["type"],
+    meta: `v0.1 · ${new Date(raw.createdAt).toLocaleDateString("ca-ES")}`,
+  };
+}
+
 export async function listApps(): Promise<AppRow[]> {
   if (!USE_REMOTE) {
     await sleep(120);
     return [...appRows];
   }
-  return await request<AppRow[]>(ENDPOINTS.apps);
+  const raw = await request<ApiApp[]>(ENDPOINTS.apps);
+  return raw.map(adaptApp);
 }
 
 export async function createApp(input: {
@@ -121,10 +142,11 @@ export async function createApp(input: {
       meta: "v0.1 · acabat de crear",
     };
   }
-  return await request<AppRow>(ENDPOINTS.apps, {
+  const raw = await request<ApiApp>(ENDPOINTS.apps, {
     method: "POST",
     body: JSON.stringify(input),
   });
+  return adaptApp(raw);
 }
 
 export async function updateApp(id: string, patch: Partial<AppRow>) {
@@ -250,10 +272,6 @@ export async function saveSettings(
 
 /* ------------------------------------------------------------- i18n keys */
 
-/**
- * Maps an ApiError (or any thrown value) to a translation key so the UI never
- * leaks raw HTTP text to the user.
- */
 export function errorKey(err: unknown) {
   if (err instanceof ApiError && err.message === "NETWORK") {
     return "error.network" as const;
@@ -261,16 +279,3 @@ export function errorKey(err: unknown) {
   if (err instanceof ApiError) return "error.server" as const;
   return "error.unknown" as const;
 }
-
-/**
- * @wire-contract
- * POST   /api/apps           body: { name, slug, type }      -> AppRow
- * PATCH  /api/apps/:id       body: Partial<AppRow>           -> { ok }
- * DELETE /api/apps/:id                                       -> { ok }
- * POST   /api/usuaris        body: { name, email, role }     -> UserRow
- * PATCH  /api/usuaris/:id    body: Partial<UserRow>          -> { ok }
- * DELETE /api/usuaris/:id                                    -> { ok }
- * PATCH  /api/connexions/:id body: Partial<ConnectionRow>    -> { ok }
- * PUT    /api/configuracio   body: EcosystemSettings         -> EcosystemSettings
- * On failure return { error: "<message>" } with a 4xx/5xx status.
- */
