@@ -49,15 +49,11 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
   const rows = useSignal<AppRow[]>(initialRows);
   const notice = useSignal<string | null>(null);
   const error = useSignal<string | null>(null);
-
-  // create form
+   // create form
   const formOpen = useSignal(false);
-  const formName = useSignal("");
-  const formSlug = useSignal("");
-  const formType = useSignal<AppRow["type"]>("internal");
+  const formRef = useSignal<HTMLFormElement | null>(null);
   const submitting = useSignal(false);
   const fieldErrors = useSignal<{ name?: string; slug?: string }>({});
-
   // delete confirmation
   const confirmId = useSignal<string | null>(null);
   const deletingId = useSignal<string | null>(null);
@@ -85,36 +81,38 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
 
   function closeForm() {
     formOpen.value = false;
-    formName.value = "";
-    formSlug.value = "";
-    formType.value = "internal";
+    formRef.value?.reset();
     fieldErrors.value = {};
     error.value = null;
   }
 
   /** Client-side validation before we ever touch the network. */
-  function validate() {
+  function validate(name: string, slug: string) {
     const next: { name?: string; slug?: string } = {};
-    if (formName.value.trim().length < 2) next.name = "error.required";
-    if (!/^[\w.-]+(\.\w{2,})+(\/\S*)?$/.test(formSlug.value.trim())) {
+    if (name.trim().length < 2) next.name = "error.required";
+    if (!/^[\w.-]+(\.\w{2,})+(\/\S*)?$/.test(slug.trim())) {
       next.slug = "error.slug";
     }
     fieldErrors.value = next;
     return Object.keys(next).length === 0;
   }
-
   async function submitForm(e: Event) {
-    e.preventDefault();
+     e.preventDefault();
     if (submitting.value) return;
-    if (!validate()) return;
+
+    const form = document.getElementById("new-app-form") as HTMLFormElement;
+    if (!form) return;
+    const formData = new FormData(form);
+    const name = (formData.get("name") as string).trim();
+    const slug = (formData.get("slug") as string).trim();
+    const type = formData.get("type") as AppRow["type"];
+
+    if (!validate(name, slug)) return;
+
     submitting.value = true;
     error.value = null;
     try {
-      const created = await createApp({
-        name: formName.value.trim(),
-        slug: formSlug.value.trim(),
-        type: formType.value,
-      });
+      const created = await createApp({ name, slug, type });
       rows.value = [created, ...rows.value];
       notice.value = `${t(current, "state.saved")} · ${created.name}`;
       closeForm();
@@ -124,7 +122,6 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
       submitting.value = false;
     }
   }
-
   async function confirmDelete() {
     const id = confirmId.value;
     if (!id || deletingId.value) return;
@@ -300,9 +297,9 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
                 onEdit={() => {
                   notice.value = `${row.name} — ${t(current, "form.close")}`;
                   formOpen.value = true;
-                  formName.value = row.name;
-                  formSlug.value = row.slug;
-                  formType.value = row.type;
+                  // formName.value = row.name;
+                  // formSlug.value = row.slug;
+                  // formType.value = row.type;
                 }}
                 onDelete={() => (confirmId.value = row.id)}
               />
@@ -339,7 +336,12 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
           </>
         }
       >
-        <form class="grid gap-4" onSubmit={submitForm}>
+        <form
+            id="new-app-form"
+            ref={(el) => (formRef.value = el)}
+            class="grid gap-4"
+            onSubmit={submitForm}
+        >
           <Field
             label={t(current, "form.appName")}
             error={fieldErrors.value.name &&
@@ -347,8 +349,7 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
           >
             <input
               type="text"
-              value={formName.value}
-              onInput={(e) => (formName.value = e.currentTarget.value)}
+              name="name"
               placeholder="Nexus Backoffice"
               class={inputClass(!!fieldErrors.value.name)}
             />
@@ -361,8 +362,7 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
           >
             <input
               type="text"
-              value={formSlug.value}
-              onInput={(e) => (formSlug.value = e.currentTarget.value)}
+              name="slug"
               placeholder="backoffice.nexus.cat"
               class={inputClass(!!fieldErrors.value.slug)}
             />
@@ -370,10 +370,8 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
 
           <Field label={t(current, "form.appType")}>
             <select
-              value={formType.value}
-              onChange={(e) =>
-                (formType.value = e.currentTarget.value as AppRow["type"])}
-              class={inputClass(false)}
+             name="type"
+             class={inputClass(false)}
             >
               <option value="internal">{TYPE_LABEL.internal[current]}</option>
               <option value="client">{TYPE_LABEL.client[current]}</option>
