@@ -7,7 +7,15 @@ import { computed, useSignal } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { t, type TranslationKey } from "../lib/i18n.ts";
 import type { AppRow } from "../lib/data.ts";
-import { ApiError, createApp, deleteApp, errorKey } from "../lib/api.ts";
+import {
+  ApiError,
+  createApp,
+  deleteApp,
+  errorKey,
+  hueOf,
+  initialsOf,
+  updateApp,
+} from "../lib/api.ts";
 import { ActionButton } from "../components/ActionButton.tsx";
 import { Card } from "../components/Card.tsx";
 import { CELL, DataTable, RowActions } from "../components/DataTable.tsx";
@@ -49,9 +57,10 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
   const rows = useSignal<AppRow[]>(initialRows);
   const notice = useSignal<string | null>(null);
   const error = useSignal<string | null>(null);
-   // create form
+  // create form
   const formOpen = useSignal(false);
   const formRef = useSignal<HTMLFormElement | null>(null);
+  const editingId = useSignal<string | null>(null);
   const submitting = useSignal(false);
   const fieldErrors = useSignal<{ name?: string; slug?: string }>({});
   // delete confirmation
@@ -82,6 +91,7 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
   function closeForm() {
     formOpen.value = false;
     formRef.value?.reset();
+    editingId.value = null;
     fieldErrors.value = {};
     error.value = null;
   }
@@ -97,7 +107,7 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
     return Object.keys(next).length === 0;
   }
   async function submitForm(e: Event) {
-     e.preventDefault();
+    e.preventDefault();
     if (submitting.value) return;
 
     const form = document.getElementById("new-app-form") as HTMLFormElement;
@@ -112,9 +122,27 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
     submitting.value = true;
     error.value = null;
     try {
-      const created = await createApp({ name, slug, type });
-      rows.value = [created, ...rows.value];
-      notice.value = `${t(current, "state.saved")} · ${created.name}`;
+      if (editingId.value) {
+        const id = editingId.value;
+        await updateApp(id, { name, slug, type });
+        rows.value = rows.value.map((row) =>
+          row.id === id
+            ? {
+              ...row,
+              name,
+              slug,
+              type,
+              initials: initialsOf(name),
+              hue: hueOf(slug),
+            }
+            : row
+        );
+        notice.value = `${t(current, "state.saved")} · ${name}`;
+      } else {
+        const created = await createApp({ name, slug, type });
+        rows.value = [created, ...rows.value];
+        notice.value = `${t(current, "state.saved")} · ${created.name}`;
+      }
       closeForm();
     } catch (err) {
       error.value = err instanceof ApiError ? err.message : "unknown";
@@ -122,6 +150,20 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
       submitting.value = false;
     }
   }
+  function openEdit(row: AppRow) {
+    editingId.value = row.id;
+    fieldErrors.value = {};
+    error.value = null;
+    formOpen.value = true;
+    requestAnimationFrame(() => {
+      const form = formRef.value;
+      if (!form) return;
+      (form.elements.namedItem("name") as HTMLInputElement).value = row.name;
+      (form.elements.namedItem("slug") as HTMLInputElement).value = row.slug;
+      (form.elements.namedItem("type") as HTMLSelectElement).value = row.type;
+    });
+  }
+
   async function confirmDelete() {
     const id = confirmId.value;
     if (!id || deletingId.value) return;
@@ -197,7 +239,10 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
         <ActionButton
           variant="primary"
           icon="plus"
-          onClick={() => (formOpen.value = true)}
+          onClick={() => {
+            editingId.value = null;
+            formOpen.value = true;
+          }}
         >
           {t(current, "apps.add")}
         </ActionButton>
@@ -264,7 +309,10 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
           </>
         }
         rows={visible.value.map((row) => (
-          <tr key={row.id} class="group transition-colors hover:bg-surface-2/70">
+          <tr
+            key={row.id}
+            class="group transition-colors hover:bg-surface-2/70"
+          >
             <td class={CELL}>
               <div class="flex items-center gap-3">
                 <InitialsBadge initials={row.initials} hue={row.hue} />
@@ -294,13 +342,7 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
                 viewLabel={t(current, "action.view")}
                 busy={busyCell}
                 deleting={deletingId.value === row.id}
-                onEdit={() => {
-                  notice.value = `${row.name} — ${t(current, "form.close")}`;
-                  formOpen.value = true;
-                  // formName.value = row.name;
-                  // formSlug.value = row.slug;
-                  // formType.value = row.type;
-                }}
+                onEdit={() => openEdit(row)}
                 onDelete={() => (confirmId.value = row.id)}
               />
             </td>
@@ -310,7 +352,9 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
 
       <Modal
         open={formOpen.value}
-        title={t(current, "form.newApp")}
+        title={editingId.value
+          ? t(current, "action.edit")
+          : t(current, "form.newApp")}
         description={t(current, "apps.subtitle")}
         onClose={closeForm}
         closeLabel={t(current, "form.close")}
@@ -319,28 +363,32 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
             <ActionButton onClick={closeForm} disabled={submitting.value}>
               {t(current, "action.cancel")}
             </ActionButton>
+
             <ActionButton
               variant="primary"
-              icon="plus"
+              icon={editingId.value ? "check" : "plus"}
               type="submit"
               loading={submitting.value}
-              onClick={() => {
-                const fake = { preventDefault() {} } as unknown as Event;
-                void submitForm(fake);
-              }}
+              onClick={() => formRef.value?.requestSubmit()}
             >
               {submitting.value
-                ? t(current, "state.creating")
+                ? editingId.value
+                  ? t(current, "state.saving")
+                  : t(current, "state.creating")
+                : editingId.value
+                ? t(current, "action.save")
                 : t(current, "form.submitApp")}
             </ActionButton>
           </>
         }
       >
         <form
-            id="new-app-form"
-            ref={(el) => (formRef.value = el)}
-            class="grid gap-4"
-            onSubmit={submitForm}
+          id="new-app-form"
+          ref={(el) => {
+            formRef.value = el;
+          }}
+          class="grid gap-4"
+          onSubmit={submitForm}
         >
           <Field
             label={t(current, "form.appName")}
@@ -370,8 +418,8 @@ export default function AppsTable({ initialRows }: AppsTableProps) {
 
           <Field label={t(current, "form.appType")}>
             <select
-             name="type"
-             class={inputClass(false)}
+              name="type"
+              class={inputClass(false)}
             >
               <option value="internal">{TYPE_LABEL.internal[current]}</option>
               <option value="client">{TYPE_LABEL.client[current]}</option>
@@ -437,9 +485,8 @@ export function Field({
         {label}
       </span>
       {children}
-      {error && (
-        <span class="text-xs font-medium text-danger-ink">{error}</span>
-      )}
+      {error && <span class="text-xs font-medium text-danger-ink">{error}
+      </span>}
       {!error && hint && <span class="text-xs text-muted-2">{hint}</span>}
     </label>
   );

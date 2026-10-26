@@ -6,12 +6,12 @@
  */
 
 import {
-  appRows,
-  connectionRows,
-  userRows,
   type AppRow,
+  appRows,
   type ConnectionRow,
+  connectionRows,
   type UserRow,
+  userRows,
 } from "./data.ts";
 
 /** Amb true, les crides van a l'API real. */
@@ -172,12 +172,38 @@ export async function deleteApp(id: string) {
 
 /* ----------------------------------------------------------------- users */
 
+/** Forma que retorna l'API Hono per a un usuari. */
+interface ApiUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Converteix un usuari de l'API al format UserRow del dashboard. */
+function adaptUser(raw: ApiUser): UserRow {
+  return {
+    id: String(raw.id),
+    name: raw.name,
+    email: raw.email,
+    role: raw.role as UserRow["role"],
+    status: raw.status as UserRow["status"],
+    lastSeen: new Date(raw.updatedAt).toLocaleDateString("ca-ES"),
+    initials: initialsOf(raw.name),
+    hue: hueOf(raw.email),
+  };
+}
+
 export async function listUsers(): Promise<UserRow[]> {
   if (!USE_REMOTE) {
     await sleep(120);
     return [...userRows];
   }
-  return await request<UserRow[]>(ENDPOINTS.users);
+  const raw = await request<ApiUser[]>(ENDPOINTS.users);
+  return raw.map(adaptUser);
 }
 
 export async function createUser(input: {

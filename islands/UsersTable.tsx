@@ -7,7 +7,15 @@
 import { computed, useSignal } from "@preact/signals";
 import { t, type TranslationKey } from "../lib/i18n.ts";
 import type { UserRow } from "../lib/data.ts";
-import { ApiError, createUser, deleteUser, errorKey } from "../lib/api.ts";
+import {
+  ApiError,
+  createUser,
+  deleteUser,
+  errorKey,
+  hueOf,
+  initialsOf,
+  updateUser,
+} from "../lib/api.ts";
 import { ActionButton } from "../components/ActionButton.tsx";
 import { Card, EmptyState, InitialsBadge } from "../components/Card.tsx";
 import { CELL, DataTable, RowActions } from "../components/DataTable.tsx";
@@ -48,9 +56,8 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
   const error = useSignal<string | null>(null);
 
   const formOpen = useSignal(false);
-  const formName = useSignal("");
-  const formEmail = useSignal("");
-  const formRole = useSignal<UserRow["role"]>("viewer");
+  const formRef = useSignal<HTMLFormElement | null>(null);
+  const editingId = useSignal<string | null>(null);
   const submitting = useSignal(false);
   const fieldErrors = useSignal<{ name?: string; email?: string }>({});
 
@@ -78,18 +85,17 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
   ];
 
   function closeForm() {
+    formRef.value?.reset();
     formOpen.value = false;
-    formName.value = "";
-    formEmail.value = "";
-    formRole.value = "viewer";
+    editingId.value = null;
     fieldErrors.value = {};
     error.value = null;
   }
 
-  function validate() {
+  function validate(name: string, email: string) {
     const next: { name?: string; email?: string } = {};
-    if (formName.value.trim().length < 2) next.name = "error.required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formEmail.value.trim())) {
+    if (name.trim().length < 2) next.name = "error.required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
       next.email = "error.email";
     }
     fieldErrors.value = next;
@@ -98,23 +104,61 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
 
   async function submitForm(e: Event) {
     e.preventDefault();
-    if (submitting.value || !validate()) return;
+    if (submitting.value) return;
+
+    const form = document.getElementById("new-user-form") as HTMLFormElement;
+    if (!form) return;
+    const formData = new FormData(form);
+    const name = (formData.get("name") as string).trim();
+    const email = (formData.get("email") as string).trim();
+    const role = formData.get("role") as UserRow["role"];
+
+    if (!validate(name, email)) return;
+
     submitting.value = true;
     error.value = null;
     try {
-      const created = await createUser({
-        name: formName.value.trim(),
-        email: formEmail.value.trim(),
-        role: formRole.value,
-      });
-      rows.value = [created, ...rows.value];
-      notice.value = `${t(current, "users.invited")} · ${created.email}`;
+      if (editingId.value) {
+        const id = editingId.value;
+        await updateUser(id, { name, email, role });
+        rows.value = rows.value.map((row) =>
+          row.id === id
+            ? {
+              ...row,
+              name,
+              email,
+              role,
+              initials: initialsOf(name),
+              hue: hueOf(email),
+            }
+            : row
+        );
+        notice.value = `${t(current, "state.saved")} · ${name}`;
+      } else {
+        const created = await createUser({ name, email, role });
+        rows.value = [created, ...rows.value];
+        notice.value = `${t(current, "users.invited")} · ${created.email}`;
+      }
       closeForm();
     } catch (err) {
       error.value = err instanceof ApiError ? err.message : "unknown";
     } finally {
       submitting.value = false;
     }
+  }
+
+  function openEdit(row: UserRow) {
+    editingId.value = row.id;
+    fieldErrors.value = {};
+    error.value = null;
+    formOpen.value = true;
+    requestAnimationFrame(() => {
+      const form = formRef.value;
+      if (!form) return;
+      (form.elements.namedItem("name") as HTMLInputElement).value = row.name;
+      (form.elements.namedItem("email") as HTMLInputElement).value = row.email;
+      (form.elements.namedItem("role") as HTMLSelectElement).value = row.role;
+    });
   }
 
   async function confirmDelete() {
@@ -126,7 +170,9 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
     try {
       await deleteUser(id);
       rows.value = rows.value.filter((r) => r.id !== id);
-      notice.value = `${target?.name ?? ""} — ${t(current, "users.deactivated")}`;
+      notice.value = `${target?.name ?? ""} — ${
+        t(current, "users.deactivated")
+      }`;
       confirmId.value = null;
     } catch (err) {
       error.value = err instanceof ApiError ? err.message : "unknown";
@@ -188,7 +234,10 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
         <ActionButton
           variant="primary"
           icon="plus"
-          onClick={() => (formOpen.value = true)}
+          onClick={() => {
+            editingId.value = null;
+            formOpen.value = true;
+          }}
         >
           {t(current, "users.add")}
         </ActionButton>
@@ -255,7 +304,10 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
           </>
         }
         rows={visible.value.map((row) => (
-          <tr key={row.id} class="group transition-colors hover:bg-surface-2/70">
+          <tr
+            key={row.id}
+            class="group transition-colors hover:bg-surface-2/70"
+          >
             <td class={CELL}>
               <div class="flex items-center gap-3">
                 <InitialsBadge initials={row.initials} hue={row.hue} />
@@ -285,22 +337,18 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
                 deleteLabel={t(current, "action.delete")}
                 busy={busyCell}
                 deleting={deletingId.value === row.id}
-                onEdit={() => {
-                  formOpen.value = true;
-                  formName.value = row.name;
-                  formEmail.value = row.email;
-                  formRole.value = row.role;
-                }}
+                onEdit={() => openEdit(row)}
                 onDelete={() => (confirmId.value = row.id)}
               />
             </td>
           </tr>
         ))}
       />
-
       <Modal
         open={formOpen.value}
-        title={t(current, "form.newUser")}
+        title={editingId.value
+          ? t(current, "action.edit")
+          : t(current, "form.newUser")}
         description={t(current, "users.subtitle")}
         onClose={closeForm}
         closeLabel={t(current, "form.close")}
@@ -311,21 +359,30 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
             </ActionButton>
             <ActionButton
               variant="primary"
-              icon="plus"
+              icon={editingId.value ? "check" : "plus"}
+              type="submit"
               loading={submitting.value}
-              onClick={() => {
-                const fake = { preventDefault() {} } as unknown as Event;
-                void submitForm(fake);
-              }}
+              onClick={() => formRef.value?.requestSubmit()}
             >
               {submitting.value
-                ? t(current, "state.creating")
+                ? editingId.value
+                  ? t(current, "state.saving")
+                  : t(current, "state.creating")
+                : editingId.value
+                ? t(current, "action.save")
                 : t(current, "form.submitUser")}
             </ActionButton>
           </>
         }
       >
-        <form class="grid gap-4" onSubmit={submitForm}>
+        <form
+          id="new-user-form"
+          ref={(el) => {
+            formRef.value = el;
+          }}
+          class="grid gap-4"
+          onSubmit={submitForm}
+        >
           <Field
             label={t(current, "form.userName")}
             error={fieldErrors.value.name &&
@@ -333,8 +390,7 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
           >
             <input
               type="text"
-              value={formName.value}
-              onInput={(e) => (formName.value = e.currentTarget.value)}
+              name="name"
               placeholder="Núria Camps"
               class={inputClass(!!fieldErrors.value.name)}
             />
@@ -347,20 +403,14 @@ export default function UsersTable({ initialRows }: UsersTableProps) {
           >
             <input
               type="email"
-              value={formEmail.value}
-              onInput={(e) => (formEmail.value = e.currentTarget.value)}
+              name="email"
               placeholder="nom.cognom@nexus.cat"
               class={inputClass(!!fieldErrors.value.email)}
             />
           </Field>
 
           <Field label={t(current, "form.userRole")}>
-            <select
-              value={formRole.value}
-              onChange={(e) =>
-                (formRole.value = e.currentTarget.value as UserRow["role"])}
-              class={inputClass(false)}
-            >
+            <select name="role" defaultValue="viewer" class={inputClass(false)}>
               <option value="admin">{t(current, "role.admin")}</option>
               <option value="editor">{t(current, "role.editor")}</option>
               <option value="viewer">{t(current, "role.viewer")}</option>
